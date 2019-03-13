@@ -1,3 +1,7 @@
+var secondElement;              //variable used for the scroll event
+var scrollController = false;   //variable used to avoid a double call of the function scrollTo
+var scrollInputController;      //variable used to check the input that call the function scrollTo
+
 class BrowseController {
   constructor($scope, browseService, playQueueService, playlistService, socketService,
       modalService, $timeout, matchmediaService, $compile, $document, $rootScope, $log, playerService,
@@ -28,7 +32,7 @@ class BrowseController {
     this.initController();
     this.songlist = [];
 
-    this.availablechars = "abcdefghijklmnopqrstuvwxyz0123456789"
+    this.availablechars = "abcdefghijklmnopqrstuvwxyz0123456789";
   }
 
   fetchLibrary(item, back = false) {
@@ -224,7 +228,7 @@ class BrowseController {
   }
 
   renderBrowseTable() {
-    this.songlist = []
+    this.songlist = [];
     if (!this.browseService.lists) {
       return false;
     }
@@ -232,11 +236,13 @@ class BrowseController {
     this.$timeout(() => {
       let angularThis = `angular.element('#browseTablesWrapper').scope().browse`;
       var item=this.browseService.info;
-
       this.table = '';
-
-      this.table += `<div class="filterSideBar" id="filterSideBar"></div>`
-
+      this.table += `<div id="filterSideBar"
+                    ontouchmove="${angularThis}.onTouch(event,'touchmove')"
+                    ontouchstart="${angularThis}.onTouch(event,'touchstart')"
+                    ontouchend="${angularThis}.onTouch(event,'touchend')">
+                    </div>`;
+      this.table += `<p id="popIndex"></p>`;
       if(this.browseService.info) {
         this.table += `<div class="rowInfo">`;
         this.table += `<div class="imageInfo">`;
@@ -304,9 +310,8 @@ class BrowseController {
           }
           else
           {
-          this.table += `<div class="itemWrapper"><div class="itemTab">`
+          this.table += `<div class="itemWrapper"><div class="itemTab">`;
           }
-
           //Print items
           if (item.icon || item.albumart) {
           this.table += `<div class="image" id="${item.active ? 'source-active': ''}"
@@ -369,15 +374,14 @@ class BrowseController {
         browseTable.style.display = 'block';
         this.applyGridStyle();
         this.$rootScope.$broadcast('browseController:listRendered');
-
-        var container= angular.element("#filterSideBar")
+        var container= angular.element("#filterSideBar");
         for (var i = 0; i< this.songlist.length; i++)
         {
           container.append(`<a class="element"
-          id="bottone"
-          ng-if="browse.getlistLength() > 0"
-          onclick="${angularThis}.scrollTo('${this.songlist[i]}')"> ${this.songlist[i].toUpperCase()}
-          </a><br/>`)
+          id="indexbutton${this.songlist[i].toUpperCase()}"
+          onclick="${angularThis}.scrollTo('${this.songlist[i]}','click')">
+          ${this.songlist[i].toUpperCase()}
+          </a><br/>`);
         }
       }, 50, false);
     }, 0);
@@ -439,18 +443,18 @@ class BrowseController {
   {
     if(this.songlist.includes(value))
     {
-      return (`<div class="itemWrapper"><div class="itemTab">`)
+      return (`<div class="itemWrapper"><div class="itemTab">`);
     }
     else
     {
       if(this.availablechars.indexOf(value)>-1)
       {
       this.songlist.push(value);
-      return(`<div id="scrollto-${value}" class="itemWrapper"><div class="itemTab">`)
+      return(`<div id="scrollto-${value}" class="itemWrapper"><div class="itemTab">`);
       }
       else
       {
-        return (`<div class="itemWrapper"><div class="itemTab">`)
+        return (`<div class="itemWrapper"><div class="itemTab">`);
       }
     }
   }
@@ -462,18 +466,73 @@ class BrowseController {
 
   getsongListName(indice)
   {
-    console.log("sono qui ciao")
     return this.songlist[indice].name;
   }
 
-  scrollTo(hash) {
-    console.log("sonoqua hash =", hash)
-    var element = angular.element('#scrollto-'+hash);
-    if(element.length > 0) {
-      var container = angular.element('#browseTablesWrapper');
-      container.scrollTop(0);
-      var scrolling = element.offset().top - container.offset().top;
-      container.animate({scrollTop: scrolling}, "fast");
+  scrollTo(hash, input) {
+    //this controll is used because the function is called  simultaneously by the onclick event and by the touchend event
+    if(scrollController === false || (scrollController === true && input === scrollInputController))
+    {
+      scrollController = true;
+      scrollInputController = input;
+      var element = angular.element('#scrollto-'+hash);
+      if(element.length > 0) {
+        var container = angular.element('#browseTablesWrapper');
+        container.scrollTop(0);
+        var scrolling = element.offset().top - container.offset().top;
+        container.animate({scrollTop: scrolling}, "fast");
+      }
+    }
+    else
+    {
+      scrollController = false;
+    }
+  }
+
+  onTouch(event, touchstatus) {
+    var pop = document.getElementById("popIndex");    //popup element that appear on click
+    switch (touchstatus)
+    {
+      case 'touchmove':
+      {
+        secondElement = document.elementFromPoint(event.touches[0].clientX, event.touches[0].clientY);
+        if(secondElement !== null && secondElement.id.indexOf("indexbutton")>= 0)
+        {
+          //on touchmove the function will show the index on the left side of the index
+          var listelement = document.getElementById("indexbutton"+secondElement.id.replace("indexbutton","").toUpperCase());
+          var page = document.getElementById("browseTablesWrapper");
+          var indexlist = document.getElementById("filterSideBar");
+          var x = page.offsetLeft +indexlist.offsetLeft -20;
+          var y = page.offsetTop +listelement.offsetTop -10;
+          pop.style.top = y+'px';
+          pop.style.left = x+'px';
+          pop.style.display = 'inline-block';
+          pop.innerText = secondElement.id.replace("indexbutton","").toUpperCase();
+        }
+        break;
+      }
+      case 'touchstart':
+      {
+        window.oncontextmenu = function(event) {
+          return false;
+         };
+        secondElement = document.elementFromPoint(event.touches[0].clientX, event.touches[0].clientY);
+        break;
+      }
+      case 'touchend':
+      {
+        window.oncontextmenu = function(event) {
+          return true;
+        };
+        pop.style.display = 'none';
+        if(secondElement !== null && secondElement.id.indexOf("indexbutton")>= 0)
+        {
+          var hash = secondElement.id.replace("indexbutton","").toLowerCase();
+          this.scrollTo(hash, 'touch');
+        }
+        secondElement = null;
+        break;
+      }
     }
   }
 }

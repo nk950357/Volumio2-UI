@@ -756,7 +756,7 @@ p.lead {
   font-size: 40px;
 }
 
-.filterSideBar{
+#filterSideBar{
   position: absolute;
   right: 0px;
 
@@ -768,9 +768,22 @@ p.lead {
 
  .element{
    display:inline-block;
+   width: 100%;
  }
-
 
  .elementList{
    width: 90vw;
+ }
+
+ #popIndex{
+   position: absolute;
+   display: none;
+   background-color: #253542;
+   min-width: 30px;
+   border-radius: 100%;
+   color: #fff;
+   text-align: center;
+   top : 50px;
+   left : 50px;
+   font-size: 20px;
  }
